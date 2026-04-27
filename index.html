@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>指尖上的敲敲話</title>
+    
+    <!-- PWA 必要的標籤 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="指尖上的敲敲話">
+    <!-- iOS 專用圖示標籤 -->
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #fecaca;
+            --primary-light: #fef2f2;
+            --bg-main: #fffafb;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            transition: all 0.5s ease;
+            -webkit-tap-highlight-color: transparent;
+            height: 100vh;
+            height: -webkit-fill-available;
+            overflow: hidden; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-stack { perspective: 1000px; }
+        
+        .flashcard { 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; 
+            cursor: grab; 
+            user-select: none;
+            touch-action: none;
+        }
+
+        .hard-frame {
+            position: absolute; inset: 0;
+            border: 12px solid #ffffff;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.05);
+            pointer-events: none; z-index: 10;
+            border-radius: 2rem;
+        }
+
+        .glass-keyboard {
+            background: transparent;
+            border: none;
+        }
+
+        .key { 
+            @apply flex flex-col items-center justify-center cursor-pointer 
+                   active:scale-95 transition-all font-bold text-center leading-none w-full h-full;
+            color: var(--primary);
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .key:active {
+            background-color: white;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .key-side {
+            @apply text-gray-400 text-sm font-normal bg-transparent border-none shadow-none;
+        }
+
+        .keyboard-desktop {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .kb-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+        }
+        .keyboard-desktop .key { 
+            height: 3.5rem; 
+            width: 10%;
+            max-width: 60px;
+            font-size: 1.5rem;
+        }
+        .key-wide { flex-grow: 1.5; max-width: 120px !important; }
+        .key-space-desktop { flex-grow: 4; max-width: 300px !important; }
+
+        .keyboard-mobile {
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 3.8rem);
+            gap: 6px;
+            width: 100%;
+        }
+        
+        .keyboard-mobile .key { 
+            font-size: 1.2rem;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .key-subtext {
+            @apply text-[9px] font-normal opacity-50 block w-full text-center mt-0.5;
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+            .keyboard-desktop { display: none; }
+            .keyboard-mobile { display: grid; }
+        }
+
+        .input-glass {
+            height: 42px !important;
+            outline: none !important;
+            @apply border-4 border-white rounded-full bg-white/70 backdrop-blur shadow-inner text-center font-bold transition-all px-6 text-lg w-full;
+            color: var(--primary);
+        }
+        
+        .input-active {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 6px var(--primary-light) !important;
+            background-color: white !important;
+        }
+
+        .speak-btn {
+            height: 42px !important;
+            width: 42px !important;
+            @apply flex items-center justify-center rounded-full bg-white/70 backdrop-blur border-4 border-white shadow-sm transition-all active:scale-90 shrink-0;
+            color: var(--primary);
+        }
+
+        #themeBtn {
+            width: 32px !important;
+            height: 32px !important;
+            padding: 0 !important;
+            background-color: var(--primary);
+            border: 3px solid white !important;
+            border-radius: 9999px !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer;
+        }
+
+        #themeBtn div {
+            width: 8px !important;
+            height: 8px !important;
+            border-radius: 9999px !important;
+        }
+
+        #mainTitle {
+            color: var(--primary);
+            text-shadow: 1px 1px 0px white;
+        }
+
+        .control-pill {
+            @apply flex-1 py-3 rounded-full transition-all active:scale-95 shadow-md border-2 border-white text-center;
+            background-color: white;
+            color: var(--primary);
+        }
+
+        .control-pill span {
+            @apply font-black text-base tracking-[0.2em];
+        }
+
+        .home-btn {
+            width: 100% !important;
+            max-width: 320px !important;
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+            margin-bottom: 1rem !important;
+            border-radius: 9999px !important;
+            font-weight: 700 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.75rem !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+            border: 2px solid white !important;
+            background-color: white;
+            color: #4b5563;
+        }
+
+        .home-btn:active {
+            transform: scale(0.96) !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        }
+
+        .home-btn-primary {
+            background-color: var(--primary) !important;
+            color: white !important;
+            margin-bottom: 2rem !important;
+            padding-top: 1.25rem !important;
+            padding-bottom: 1.25rem !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+            border: none !important;
+        }
+
+        .home-btn-danger {
+            color: #ef4444 !important;
+            margin-top: 1.5rem !important;
+            opacity: 0.8;
+        }
+
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            z-index: 1100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4" style="border-color: var(--primary); border-top-color: transparent;"></div>
+        <p class="font-bold text-sm" style="color: var(--primary);">處理資料中...</p>
+    </div>
+
+    <header class="p-4 flex items-center justify-center relative z-50 bg-white/30 backdrop-blur-sm shrink-0">
+        <h1 id="mainTitle" class="text-lg font-black tracking-tighter">指尖上的敲敲話</h1>
+        <div class="absolute right-4 flex items-center">
+            <button id="themeBtn" title="切換配色">
+                <div class="bg-white/40 animate-pulse"></div>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center justify-center px-6 overflow-hidden relative">
+        <div class="flex-grow min-h-[5px]"></div>
+
+        <div id="emptyState" class="w-full max-w-sm flex flex-col items-center animate-in fade-in zoom-in duration-500">
+            <button id="restoreBtn" class="home-btn home-btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"></path></svg>
+                <span class="text-xl tracking-widest">開始學習</span>
+            </button>
+
+            <button onclick="exportFullBackup()" class="home-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>備份進度</span>
+            </button>
+
+            <input type="file" id="imageInput" multiple accept="image/*,application/json" class="hidden">
+            <button onclick="document.getElementById('imageInput').click()" class="home-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>恢復進度 / 匯入</span>
+            </button>
+
+            <button onclick="exportToExcel()" class="home-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>匯出 EXCEL</span>
+            </button>
+
+            <button onclick="resetData()" class="home-btn home-btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <span class="text-sm">重設所有資料</span>
+            </button>
+
+            <p id="dbStatus" class="text-[10px] font-bold tracking-[0.2em] mt-10 opacity-30 uppercase">載入數據中...</p>
+        </div>
+
+        <div id="mainContent" class="w-full max-w-2xl flex flex-col items-center gap-4 hidden">
+            <div id="cardStack" class="card-stack w-full aspect-[2/1] relative z-20"></div>
+
+            <div id="voiceControl" class="w-full flex flex-col gap-3">
+                <div class="flex gap-3 items-center w-full">
+                    <input type="text" id="vocabInput" placeholder="韓文..." class="input-glass flex-grow" readonly onclick="handleFocus('vocab')">
+                    <button class="speak-btn" onclick="playTTS(document.getElementById('vocabInput').value)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-3 items-center w-full">
+                    <input type="text" id="sentenceInput" placeholder="例句..." class="input-glass flex-grow" readonly onclick="handleFocus('sentence')">
+                    <button class="speak-btn" onclick="playTTS(document.getElementById('sentenceInput').value)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                    </button>
+                </div>
+                
+                <div id="keyboardContainer" class="w-full glass-keyboard pt-2">
+                    <div id="kb-desktop" class="keyboard-desktop select-none">
+                        <div class="kb-row">
+                            <div class="key" onclick="handleKey('ㅂ')">ㅂ</div><div class="key" onclick="handleKey('ㅈ')">ㅈ</div><div class="key" onclick="handleKey('ㄷ')">ㄷ</div><div class="key" onclick="handleKey('ㄱ')">ㄱ</div><div class="key" onclick="handleKey('ㅅ')">ㅅ</div><div class="key" onclick="handleKey('ㅛ')">ㅛ</div><div class="key" onclick="handleKey('ㅕ')">ㅕ</div><div class="key" onclick="handleKey('ㅑ')">ㅑ</div><div class="key" onclick="handleKey('ㅐ')">ㅐ</div><div class="key" onclick="handleKey('ㅔ')">ㅔ</div>
+                        </div>
+                        <div class="kb-row">
+                            <div class="key" onclick="handleKey('ㅁ')">ㅁ</div><div class="key" onclick="handleKey('ㄴ')">ㄴ</div><div class="key" onclick="handleKey('ㅇ')">ㅇ</div><div class="key" onclick="handleKey('ㄹ')">ㄹ</div><div class="key" onclick="handleKey('ㅎ')">ㅎ</div><div class="key" onclick="handleKey('ㅗ')">ㅗ</div><div class="key" onclick="handleKey('ㅓ')">ㅓ</div><div class="key" onclick="handleKey('ㅏ')">ㅏ</div><div class="key" onclick="handleKey('ㅣ')">ㅣ</div>
+                        </div>
+                        <div class="kb-row">
+                            <div class="key" onclick="handleKey('ㅋ')">ㅋ</div><div class="key" onclick="handleKey('ㅌ')">ㅌ</div><div class="key" onclick="handleKey('ㅊ')">ㅊ</div><div class="key" onclick="handleKey('ㅍ')">ㅍ</div><div class="key" onclick="handleKey('ㅠ')">ㅠ</div><div class="key" onclick="handleKey('ㅜ')">ㅜ</div><div class="key" onclick="handleKey('ㅡ')">ㅡ</div><div class="key key-wide" onclick="handleBackspace()">⌫</div>
+                        </div>
+                        <div class="kb-row">
+                            <div class="key key-space-desktop" onclick="handleKey(' ')">SPACE</div>
+                            <div class="key key-wide" onclick="handleClearCurrent()">CLEAR</div>
+                        </div>
+                    </div>
+
+                    <div id="kb-mobile" class="keyboard-mobile select-none">
+                        <div class="key" onclick="handleKey('ㅣ')">ㅣ</div>
+                        <div class="key" onclick="handleKey('.')">·</div>
+                        <div class="key" onclick="handleKey('ㅡ')">ㅡ</div>
+                        <div class="key key-side" onclick="handleBackspace()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
+                        </div>
+                        <div class="key" onclick="handleKey('ㄱ')">ㄱ<span class="key-subtext">ㅋ ㄲ</span></div>
+                        <div class="key" onclick="handleKey('ㄴ')">ㄴ<span class="key-subtext">ㄹ</span></div>
+                        <div class="key" onclick="handleKey('ㄷ')">ㄷ<span class="key-subtext">ㅌ ㄸ</span></div>
+                        <div class="key key-side row-span-2" onclick="handleNext()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
+                        </div>
+                        <div class="key" onclick="handleKey('ㅂ')">ㅂ<span class="key-subtext">ㅍ ㅃ</span></div>
+                        <div class="key" onclick="handleKey('ㅅ')">ㅅ<span class="key-subtext">ㅎ ㅆ</span></div>
+                        <div class="key" onclick="handleKey('ㅈ')">ㅈ<span class="key-subtext">ㅊ ㅉ</span></div>
+                        <div class="key" onclick="handleNextCursor()">→</div>
+                        <div class="key" onclick="handleKey('ㅇ')">ㅇ<span class="key-subtext">ㅁ</span></div>
+                        <div class="key text-xs font-bold" onclick="handleKey(' ')">SPACE</div>
+                        <div class="key" onclick="handleKey(',')">.,?!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-grow min-h-[5px]"></div>
+    </main>
+
+    <footer id="mainFooter" class="bg-white/60 backdrop-blur-md border-t-2 border-white px-6 py-4 shrink-0 hidden">
+        <div class="max-w-md mx-auto grid grid-cols-2 gap-8 items-center">
+            <div class="flex justify-center w-full">
+                <button onclick="exitSession()" class="control-pill w-full max-w-[140px]">
+                    <span>回首頁</span>
+                </button>
+            </div>
+            <div class="flex justify-center w-full">
+                <button onclick="handleNext()" class="control-pill w-full max-w-[140px]">
+                    <span>下一張</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/hangul-js/hangul.min.js"></script>
+    <script>
+        // PWA Service Worker 註冊
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('SW 註冊成功');
+                }).catch(err => {
+                    console.log('SW 註冊失敗', err);
+                });
+            });
+        }
+
+        const GITHUB_CONFIG = {
+            IMAGE_DIR: 'images/',
+            LIST_FILE: 'file_list.json'
+        };
+
+        const CHUNJIIN_MAP = {
+            'ㄱ': ['ㄱ', 'ㅋ', 'ㄲ'], 'ㄴ': ['ㄴ', 'ㄹ'], 'ㄷ': ['ㄷ', 'ㅌ', 'ㄸ'],
+            'ㅂ': ['ㅂ', 'ㅍ', 'ㅃ'], 'ㅅ': ['ㅅ', 'ㅎ', 'ㅆ'], 'ㅈ': ['ㅈ', 'ㅊ', 'ㅉ'],
+            'ㅇ': ['ㅇ', 'ㅁ'], ',': ['.', ',', '?', '!']
+        };
+
+        const themes = [
+            { primary: "#fecaca", light: "#fef2f2", bg: "#fffafb" }, 
+            { primary: "#fed7aa", light: "#fffaf5", bg: "#fffcf9" }, 
+            { primary: "#fde047", light: "#fefce8", bg: "#fffef2" }, 
+            { primary: "#86efac", light: "#f0fdf4", bg: "#f5fff8" }, 
+            { primary: "#bfdbfe", light: "#eff6ff", bg: "#f9fcff" }, 
+            { primary: "#ddd6fe", light: "#f5f3ff", bg: "#fbfaff" }
+        ];
+        let currentThemeIdx = parseInt(localStorage.getItem('kr_theme_idx')) || 0;
+
+        function applyTheme(idx) {
+            const theme = themes[idx];
+            document.documentElement.style.setProperty('--primary', theme.primary);
+            document.documentElement.style.setProperty('--primary-light', theme.light);
+            document.documentElement.style.setProperty('--bg-main', theme.bg);
+            const restoreBtn = document.getElementById('restoreBtn');
+            if (restoreBtn) restoreBtn.style.backgroundColor = theme.primary;
+            document.getElementById('themeBtn').style.backgroundColor = theme.primary;
+            document.getElementById('vocabInput').style.color = theme.primary;
+            document.getElementById('sentenceInput').style.color = theme.primary;
+            document.getElementById('mainTitle').style.color = theme.primary;
+            document.querySelectorAll('.control-pill').forEach(el => el.style.color = theme.primary);
+            document.querySelectorAll('.speak-btn').forEach(el => el.style.color = theme.primary);
+            document.querySelectorAll('.key:not(.key-side)').forEach(el => {
+                el.style.color = theme.primary;
+                el.style.borderColor = theme.primary + '33'; 
+            });
+            localStorage.setItem('kr_theme_idx', idx);
+        }
+
+        document.getElementById('themeBtn').onclick = () => {
+            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+            applyTheme(currentThemeIdx);
+        };
+
+        let db, vocabJamo = [], sentenceJamo = [], activeInput = 'vocab', sessionLibrary = [], currentIndex = 0;
+        let vocabDict = JSON.parse(localStorage.getItem('kr_vocab_dict_v2')) || {};
+        let lastKey = null, lastKeyTime = 0, cycleIdx = 0;
+
+        const vocabInput = document.getElementById('vocabInput');
+        const sentenceInput = document.getElementById('sentenceInput');
+
+        const request = indexedDB.open("KR_Vocab_DB", 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("images")) db.createObjectStore("images", { keyPath: "name" });
+        };
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            applyTheme(currentThemeIdx); 
+            autoFetchGithubList();
+        };
+
+        async function autoFetchGithubList() {
+            try {
+                const response = await fetch(GITHUB_CONFIG.LIST_FILE);
+                if (response.ok) {
+                    const list = await response.json();
+                    sessionLibrary = list.sort();
+                    updateStats("雲端資源已載入");
+                } else {
+                    checkLocalImages();
+                }
+            } catch (err) {
+                checkLocalImages();
+            }
+        }
+
+        function checkLocalImages() {
+            const tx = db.transaction(["images"], "readonly");
+            const req = tx.objectStore("images").getAllKeys();
+            req.onsuccess = () => {
+                sessionLibrary = req.result.sort();
+                updateStats();
+            };
+        }
+
+        function updateStats(msg) {
+            const tx = db.transaction(["images"], "readonly");
+            const countReq = tx.objectStore("images").count();
+            countReq.onsuccess = () => {
+                const total = msg ? sessionLibrary.length : countReq.result;
+                const practiced = Object.keys(vocabDict).length;
+                document.getElementById('dbStatus').textContent = msg || `本機字卡: ${total} | 練習: ${practiced}`;
+            };
+        }
+
+        document.getElementById('restoreBtn').onclick = () => {
+            if (sessionLibrary.length > 0) {
+                startSession(sessionLibrary);
+            } else {
+                alert("請先匯入圖片或等待 GitHub 資源同步。");
+            }
+        };
+
+        function startSession(allNames) {
+            sessionLibrary = allNames;
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('mainFooter').classList.remove('hidden');
+            showNextCard();
+            handleFocus('vocab');
+        }
+
+        function exitSession() {
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('mainFooter').classList.add('hidden');
+            updateStats();
+        }
+
+        function showNextCard() {
+            if (currentIndex >= sessionLibrary.length && sessionLibrary.length > 0) currentIndex = 0;
+            if (sessionLibrary.length === 0) return;
+            const name = sessionLibrary[currentIndex];
+            const tx = db.transaction(["images"], "readonly");
+            tx.objectStore("images").get(name).onsuccess = (e) => {
+                let imgSrc;
+                if (e.target.result) {
+                    imgSrc = e.target.result.data;
+                } else {
+                    imgSrc = GITHUB_CONFIG.IMAGE_DIR + name;
+                }
+                renderCard(imgSrc);
+                const data = vocabDict[name] || { word: "", sentence: "" };
+                vocabInput.value = data.word || "";
+                sentenceInput.value = data.sentence || "";
+                vocabJamo = Hangul.disassemble(vocabInput.value);
+                sentenceJamo = Hangul.disassemble(sentenceInput.value);
+            };
+        }
+
+        function renderCard(src) {
+            document.getElementById('cardStack').innerHTML = `<div id="activeCard" class="flashcard absolute inset-0 bg-white rounded-[2rem] shadow-xl overflow-hidden"><div class="hard-frame"></div><img src="${src}" class="w-full h-full object-cover pointer-events-none" onerror="this.src='https://placehold.co/600x400?text=圖片載入失敗'"></div>`;
+            setupDraggable(document.getElementById('activeCard'));
+        }
+
+        window.handleFocus = (type) => {
+            activeInput = type;
+            vocabInput.classList.toggle('input-active', type === 'vocab');
+            sentenceInput.classList.toggle('input-active', type === 'sentence');
+            lastKey = null;
+        };
+
+        window.handleKey = (char) => {
+            const isMobile = window.innerWidth <= 768;
+            const targetJamo = activeInput === 'vocab' ? vocabJamo : sentenceJamo;
+            const targetInput = activeInput === 'vocab' ? vocabInput : sentenceInput;
+            if (char === ' ') { 
+                targetJamo.push(' '); 
+                lastKey = null; 
+            } else if (isMobile) {
+                if (CHUNJIIN_MAP[char]) {
+                    const now = Date.now();
+                    if (lastKey === char && (now - lastKeyTime < 800)) { 
+                        targetJamo.pop(); 
+                        cycleIdx = (cycleIdx + 1) % CHUNJIIN_MAP[char].length; 
+                    } else { 
+                        cycleIdx = 0; 
+                    }
+                    targetJamo.push(CHUNJIIN_MAP[char][cycleIdx]);
+                    lastKey = char; lastKeyTime = now;
+                } else if (char === 'ㅣ' || char === '.' || char === 'ㅡ') {
+                    const last = targetJamo[targetJamo.length - 1];
+                    let combined = false;
+                    if (char === '.' || char === 'ᆞ') {
+                        if (last === 'ㅣ') { targetJamo.pop(); targetJamo.push('ㅏ'); combined = true; }
+                        else if (last === 'ㅏ') { targetJamo.pop(); targetJamo.push('ㅑ'); combined = true; }
+                        else if (last === 'ㅡ') { targetJamo.pop(); targetJamo.push('ㅜ'); combined = true; }
+                        else if (last === 'ㅜ') { targetJamo.pop(); targetJamo.push('ㅠ'); combined = true; }
+                    } else if (char === 'ㅣ') { if (last === 'ᆞ') { targetJamo.pop(); targetJamo.push('ㅓ'); combined = true; } }
+                    else if (char === 'ㅡ') { if (last === 'ᆞ') { targetJamo.pop(); targetJamo.push('ㅗ'); combined = true; } }
+                    if (!combined) targetJamo.push(char === '.' ? 'ᆞ' : char);
+                    lastKey = char; lastKeyTime = Date.now();
+                } else {
+                    targetJamo.push(char); lastKey = null;
+                }
+            } else { 
+                targetJamo.push(char); lastKey = null; 
+            }
+            targetInput.value = Hangul.assemble(targetJamo);
+            saveData();
+        };
+
+        window.handleNextCursor = () => { lastKey = null; };
+        window.handleBackspace = () => {
+            const targetJamo = activeInput === 'vocab' ? vocabJamo : sentenceJamo;
+            const targetInput = activeInput === 'vocab' ? vocabInput : sentenceInput;
+            targetJamo.pop(); targetInput.value = Hangul.assemble(targetJamo); saveData();
+        };
+        window.handleClearCurrent = () => { 
+            if(activeInput === 'vocab') { vocabJamo = []; vocabInput.value = ""; }
+            else { sentenceJamo = []; sentenceInput.value = ""; }
+            saveData(); 
+        };
+        function saveData() {
+            const name = sessionLibrary[currentIndex];
+            if (name) {
+                vocabDict[name] = { word: vocabInput.value, sentence: sentenceInput.value };
+                localStorage.setItem('kr_vocab_dict_v2', JSON.stringify(vocabDict));
+            }
+        }
+        window.exportToExcel = () => {
+            if (Object.keys(vocabDict).length === 0) { alert("沒有可匯出的資料。"); return; }
+            let csvContent = "檔案名稱,單字,例句\n";
+            for (const filename in vocabDict) {
+                const data = vocabDict[filename];
+                csvContent += `${filename},"${data.word.replace(/"/g, '""')}","${data.sentence.replace(/"/g, '""')}"\n`;
+            }
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob); link.download = `韓文單字表_${new Date().toISOString().split('T')[0]}.csv`; link.click();
+        };
+        window.exportFullBackup = async () => {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            const tx = db.transaction(["images"], "readonly");
+            const images = await new Promise(r => { tx.objectStore("images").getAll().onsuccess = (e) => r(e.target.result); });
+            const backup = { version: "2.0", vocabData: vocabDict, imageData: images, settings: { themeIdx: currentThemeIdx } };
+            const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `指尖上的敲敲話_完整備份_${new Date().toISOString().split('T')[0]}.json`; link.click();
+            document.getElementById('loadingOverlay').style.display = 'none';
+        };
+        document.getElementById('imageInput').onchange = async (e) => {
+            const files = Array.from(e.target.files);
+            if(files.length === 0) return;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            for(const file of files) {
+                if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                    const text = await file.text();
+                    try {
+                        const backup = JSON.parse(text);
+                        if (backup.imageData && backup.vocabData) {
+                            vocabDict = { ...vocabDict, ...backup.vocabData };
+                            localStorage.setItem('kr_vocab_dict_v2', JSON.stringify(vocabDict));
+                            const tx = db.transaction(["images"], "readwrite");
+                            const store = tx.objectStore("images");
+                            for (const img of backup.imageData) store.put(img);
+                        }
+                    } catch (err) { console.error("JSON 格式錯誤", err); }
+                } else {
+                    await new Promise(r => {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const tx = db.transaction(["images"], "readwrite");
+                            tx.objectStore("images").put({ name: file.name, data: ev.target.result }).onsuccess = r;
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            }
+            document.getElementById('loadingOverlay').style.display = 'none';
+            checkLocalImages();
+            alert("匯入完成！");
+        };
+        function playTTS(text) { if (!text) return; const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+        let isDragging = false, startX = 0, currentX = 0, startY = 0, currentY = 0, activeEl = null;
+        function setupDraggable(el) { activeEl = el; el.addEventListener('touchstart', onStart, {passive: false}); el.addEventListener('mousedown', onStart); }
+        function onStart(e) { isDragging = true; const t = e.touches ? e.touches[0] : e; startX = t.clientX; startY = t.clientY; if(activeEl) activeEl.style.transition = 'none'; }
+        function onMove(e) { if (!isDragging || !activeEl) return; const t = e.touches ? e.touches[0] : e; currentX = t.clientX - startX; currentY = t.clientY - startY; activeEl.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX*0.05}deg)`; }
+        function onEnd() { if (!isDragging || !activeEl) return; isDragging = false; if (Math.abs(currentX) > 100 || currentY > 80) handleNext(); else { activeEl.style.transition = 'all 0.3s'; activeEl.style.transform = 'translate(0,0)'; } }
+        document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchmove', onMove, {passive: false}); document.addEventListener('touchend', onEnd);
+        window.handleNext = () => { currentIndex++; showNextCard(); };
+        window.resetData = () => { if (confirm('確定重設？這將清空所有圖片與學習紀錄。')) { indexedDB.deleteDatabase("KR_Vocab_DB"); localStorage.clear(); location.reload(); } };
+    </script>
+</body>
+</html>
