@@ -4,8 +4,8 @@
   "description": "韓文單字指尖學習工具",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#fffafb",
-  "theme_color": "#fecaca",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "icon.png",
