@@ -224,6 +224,34 @@
             justify-content: center;
             backdrop-filter: blur(4px);
         }
+
+        /* 自定義安裝提示框樣式 */
+        .pwa-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.2);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            backdrop-filter: blur(8px);
+        }
+        .pwa-content {
+            background: var(--bg-main);
+            border: 8px solid white;
+            border-radius: 2.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            max-width: 320px;
+            width: 100%;
+            text-align: center;
+            padding: 2rem;
+            animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -231,6 +259,21 @@
     <div id="loadingOverlay">
         <div class="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4" style="border-color: var(--primary); border-top-color: transparent;"></div>
         <p class="font-bold text-sm" style="color: var(--primary);">處理資料中...</p>
+    </div>
+
+    <!-- PWA 安裝提示框 -->
+    <div id="installModal" class="pwa-modal">
+        <div class="pwa-content">
+            <div class="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-sm border-2 border-pink-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <h2 class="text-xl font-black mb-2" style="color: var(--primary);">安裝應用程式</h2>
+            <p class="text-gray-500 text-sm mb-6 leading-relaxed">將「指尖上的敲敲話」加到主畫面，學習韓文更方便！</p>
+            <div class="flex flex-col gap-3">
+                <button id="confirmInstall" class="home-btn home-btn-primary !mb-0">立即安裝</button>
+                <button id="closeInstall" class="text-gray-400 text-sm font-bold py-2">稍後再說</button>
+            </div>
+        </div>
     </div>
 
     <header class="p-4 flex items-center justify-center relative z-50 bg-white/30 backdrop-blur-sm shrink-0">
@@ -355,7 +398,32 @@
 
     <script src="https://unpkg.com/hangul-js/hangul.min.js"></script>
     <script>
-        // PWA Service Worker 註冊
+        // PWA Service Worker 註冊與安裝提示
+        let deferredPrompt;
+        const installModal = document.getElementById('installModal');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // 延遲一點點時間再跳出，體驗較好
+            setTimeout(() => {
+                installModal.style.display = 'flex';
+            }, 2000);
+        });
+
+        document.getElementById('confirmInstall').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                installModal.style.display = 'none';
+            }
+        });
+
+        document.getElementById('closeInstall').addEventListener('click', () => {
+            installModal.style.display = 'none';
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
