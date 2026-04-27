@@ -1,0 +1,32 @@
+name: Update Image List
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'images/**'
+
+jobs:
+  update-list:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate File List
+        run: |
+          echo "[" > file_list.json
+          # 使用 ls 指令抓取 images 資料夾內的檔案並格式化成 JSON 陣列
+          ls images | grep -E '\.(jpg|jpeg|png|gif|webp)$' | sed 's/.*/  "&",/' >> file_list.json
+          # 移除最後一個逗號並加上結束符號
+          sed -i '$ s/,$//' file_list.json
+          echo "]" >> file_list.json
+
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 自動更新圖片清單 (GitHub Actions)"
+          file_pattern: 'file_list.json'
