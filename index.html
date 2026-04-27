@@ -230,26 +230,26 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.25);
             z-index: 2000;
             align-items: center;
             justify-content: center;
             padding: 2rem;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(6px);
         }
         .pwa-content {
             background: var(--bg-main);
             border: 8px solid white;
             border-radius: 2.5rem;
             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-            max-width: 320px;
+            max-width: 340px;
             width: 100%;
             text-align: center;
             padding: 2rem;
             animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         @keyframes modalPop {
-            from { transform: scale(0.8); opacity: 0; }
+            from { transform: scale(0.85); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
     </style>
@@ -264,11 +264,11 @@
     <!-- PWA 安裝提示框 -->
     <div id="installModal" class="pwa-modal">
         <div class="pwa-content">
-            <div class="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-sm border-2 border-pink-100">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <div class="w-20 h-20 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-md border-2 border-pink-100 overflow-hidden">
+                <img src="icon.png" alt="App Icon" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/192x192?text=App'">
             </div>
             <h2 class="text-xl font-black mb-2" style="color: var(--primary);">安裝應用程式</h2>
-            <p class="text-gray-500 text-sm mb-6 leading-relaxed">將「指尖上的敲敲話」加到主畫面，學習韓文更方便！</p>
+            <p class="text-gray-500 text-sm mb-6 leading-relaxed">將「指尖上的敲敲話」加到主畫面，學習韓文更方便快速！</p>
             <div class="flex flex-col gap-3">
                 <button id="confirmInstall" class="home-btn home-btn-primary !mb-0">立即安裝</button>
                 <button id="closeInstall" class="text-gray-400 text-sm font-bold py-2">稍後再說</button>
@@ -277,7 +277,8 @@
     </div>
 
     <header class="p-4 flex items-center justify-center relative z-50 bg-white/30 backdrop-blur-sm shrink-0">
-        <h1 id="mainTitle" class="text-lg font-black tracking-tighter">指尖上的敲敲話</h1>
+        <!-- 修改處：字體大小由 text-lg 改為 text-3xl (放大約 50% 以上) -->
+        <h1 id="mainTitle" class="text-3xl font-black tracking-tighter">指尖上的敲敲話</h1>
         <div class="absolute right-4 flex items-center">
             <button id="themeBtn" title="切換配色">
                 <div class="bg-white/40 animate-pulse"></div>
@@ -398,17 +399,16 @@
 
     <script src="https://unpkg.com/hangul-js/hangul.min.js"></script>
     <script>
-        // PWA Service Worker 註冊與安裝提示
+        // PWA Service Worker 註冊與無冷卻機制的安裝提示
         let deferredPrompt;
         const installModal = document.getElementById('installModal');
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // 延遲一點點時間再跳出，體驗較好
             setTimeout(() => {
                 installModal.style.display = 'flex';
-            }, 2000);
+            }, 1500);
         });
 
         document.getElementById('confirmInstall').addEventListener('click', async () => {
@@ -421,6 +421,11 @@
         });
 
         document.getElementById('closeInstall').addEventListener('click', () => {
+            installModal.style.display = 'none';
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('App 已安裝成功');
             installModal.style.display = 'none';
         });
 
@@ -499,7 +504,6 @@
         };
 
         async function autoFetchGithubList() {
-            // 修正：加上隨機參數避免快取
             const cacheBuster = `?t=${new Date().getTime()}`;
             try {
                 const response = await fetch(GITHUB_CONFIG.LIST_FILE + cacheBuster);
@@ -525,7 +529,6 @@
         }
 
         function updateStats(msg) {
-            // 優先統計雲端 sessionLibrary 的數量
             const total = sessionLibrary.length;
             const practiced = Object.keys(vocabDict).length;
             document.getElementById('dbStatus').textContent = msg || `字卡總計: ${total} | 已練習: ${practiced}`;
@@ -535,7 +538,6 @@
             if (sessionLibrary.length > 0) {
                 startSession(sessionLibrary);
             } else {
-                // 如果按下的時候還沒抓到，嘗試手動再抓一次
                 autoFetchGithubList().then(() => {
                     if(sessionLibrary.length > 0) startSession(sessionLibrary);
                     else alert("請先匯入圖片或等待 GitHub 資源同步。");
@@ -569,7 +571,6 @@
                 if (e.target.result) {
                     imgSrc = e.target.result.data;
                 } else {
-                    // 修正：從目前路徑獲取圖片
                     const currentPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
                     imgSrc = currentPath + GITHUB_CONFIG.IMAGE_DIR + name;
                 }
