@@ -259,7 +259,7 @@
             <input type="file" id="imageInput" multiple accept="image/*,application/json" class="hidden">
             <button onclick="document.getElementById('imageInput').click()" class="home-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                <span>恢復進度 / 匯入</span>
+                <span>恢復進度</span>
             </button>
 
             <button onclick="exportToExcel()" class="home-btn">
@@ -457,13 +457,10 @@
         }
 
         function updateStats(msg) {
-            const tx = db.transaction(["images"], "readonly");
-            const countReq = tx.objectStore("images").count();
-            countReq.onsuccess = () => {
-                const total = msg ? sessionLibrary.length : countReq.result;
-                const practiced = Object.keys(vocabDict).length;
-                document.getElementById('dbStatus').textContent = msg || `本機字卡: ${total} | 練習: ${practiced}`;
-            };
+            // 優先統計雲端 sessionLibrary 的數量
+            const total = sessionLibrary.length;
+            const practiced = Object.keys(vocabDict).length;
+            document.getElementById('dbStatus').textContent = msg || `字卡總計: ${total} | 已練習: ${practiced}`;
         }
 
         document.getElementById('restoreBtn').onclick = () => {
